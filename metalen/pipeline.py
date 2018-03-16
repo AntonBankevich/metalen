@@ -5,7 +5,7 @@ import os
 from metalen import SeqIO
 from metalen import sam_parser
 from metalen import alignment
-from metalen import io
+from metalen import metalen_io
 from metalen import calculator
 
 VERSION = "1.0"
@@ -55,17 +55,16 @@ class ResultPrinter:
 
     def print_all_results(self, read_count):
         from metalen.calculator import LimitSequence
-        if self.debug:
-            tslr_limits = list(LimitSequence(self.tslr_limits, self.calc.tslr_count))
-        else:
-            tslr_limits = [self.calc.tslr_count]
-        self.log.info("\nResults for " + str(read_count))
+        tslr_limits = list(LimitSequence(self.tslr_limits, self.calc.tslr_count))
+        self.log.info("")
+        self.log.info("Results for " + str(read_count) + " short reads")
         for num_tslrs in tslr_limits:
             self.print_results(read_count, num_tslrs, self.log)
+        self.log.info("")
 
     def print_results(self, num_reads, num_tslrs, log):
         res = self.calc.Count(num_reads, num_tslrs)
-        self.log.info("Total TSLRs: " + str(num_tslrs) + "(" + estToString(res.nonzero * 100) +
+        self.log.info("Total TSLRs: " + str(num_tslrs) + ". " + estToString(res.nonzero * 100) +
                       " % long reads were covered by short reads.")
         if res.nonzero < 0.7:
             self.log.info("WARNING: high fraction of uncovered long reads. Result is unreliable.")
@@ -79,7 +78,7 @@ class MetaLengthPipeline:
 
     def Run(self):
         # prepare to run
-        io.ensure_dir_existence(self.params.output_dir)
+        metalen_io.ensure_dir_existence(self.params.output_dir)
         log_file = logging.StreamHandler(open(os.path.join(self.params.output_dir, "log.info"), "w"))
         self.params.log.addHandler(log_file)
         # find read count if not provided
@@ -87,7 +86,7 @@ class MetaLengthPipeline:
             self.params.log.info("Counting reads. To skip this step use --read-count option")
             self.params.read_count = self.CountReads()
             self.params.log.info("Number of reads: " + str(self.params.read_count))
-        # preapare combined TSLRs file and construct index if not provided
+        # prepare combined TSLRs file and construct index if not provided
         if self.params.tslr_index is not None or self.params.sam is not None:
             assert len(self.params.tslrs) == 1
             tslrs_file = self.params.tslrs[0]
@@ -99,23 +98,36 @@ class MetaLengthPipeline:
         else:
             sam_handler = sam_parser.Samfile(open(self.params.sam, "r"))
         # calculate metagenome length
-        self.ProcessSam(sam_handler, tslrs_file)
+        heights = self.ProcessSam(sam_handler, tslrs_file)
+        # draw frequency histogram
+        import histogram
+        if histogram.Ready:
+            hfname = os.path.join(self.params.output_dir, "frequency_histogram.pdf")
+            histogram.DrawHeightHistogram(hfname, heights)
+            self.params.log.info("Histogram written to " + hfname)
+        else:
+            self.params.log.info("WARNING: can not draw histogram. " + histogram.Error)
         # prepare to finish
         self.params.log.removeHandler(log_file)
 
     def PerformAlignment(self, tslrs_file, log):
         aligner = alignment.Bowtie2(self.params.bowtie_path, self.params.bowtie_params)
+        alignment_dir = os.path.join(self.params.output_dir, "alignment")
+        metalen_io.ensure_dir_existence(alignment_dir)
         if self.params.tslr_index is None:
             log.info("Creating index for TSLRs")
-            alignment_calculator = alignment.AlignmentCalculator(self.params.output_dir, aligner, tslrs_file, log)
+            alignment_calculator = alignment.AlignmentCalculator(alignment_dir, aligner, tslrs_file, log)
         else:
-            alignment_calculator = alignment.AlignmentCalculator(self.params.output_dir, aligner, self.params.tslr_index, log)
+            alignment_calculator = alignment.AlignmentCalculator(alignment_dir, aligner, self.params.tslr_index, log)
         log.info("TSLR index ready")
         if self.params.save_sam:
+            log.info("Starting alignment")
             sam_files = alignment_calculator.align_bwa_pe_libs(zip(self.params.left_reads, self.params.right_reads), self.params.output_dir,
                                                                self.params.threads)
             sam_handler_list = [open(sam_file, "r") for sam_file in sam_files]
+            log.info("Finished alignment")
         else:
+            log.info("Starting alignment")
             sam_handler_list = [alignment_calculator.AlignPELibOnline(left, right, self.params.threads) for left, right in
                                 zip(self.params.left_reads, self.params.right_reads)]
         return sam_handler_list
@@ -140,17 +152,29 @@ class MetaLengthPipeline:
         if calc.is_cnt.get() == 0:
             self.params.log.info("WARNING: Could not estimate insert size. Setting insert size value to 0.")
         self.params.log.info("Alignment analysis finished")
-        self.params.log.info("\n")
         self.params.log.info("Insert size estimated as " + str(calc.is_cnt.get()))
         if self.params.output_coverages:
-            self.print_coverages(calc.coverage_records, calc.seq_len, calc.is_cnt.get())
-        printer.print_all_results(self.params.read_count)
+            self.print_coverages(calc.coverage_records, calc.is_cnt.get())
+        if self.params.debug:
+            printer.print_all_results(self.params.read_count)
+        else:
+            printer.print_results(self.params.read_count, self.calc.tslr_count, self.params.log)
+        return self.getHeights(calc.coverage_records, calc.is_cnt.get())
 
-    def print_coverages(self, coverage_records, seqs, ins):
-        f = open(os.path.join(self.params.output_dir, "tslr_coverages.info"), "w")
-        for rec, l in zip(coverage_records, seqs):
+    def getHeights(self, coverage_records, ins):
+        res = []
+        for rec in coverage_records:
+            l = len(rec)
             if l > self.params.min_len:
-                f.write(str(l) + " " + str(rec.get()) + " " + str(rec.get() / (l - ins)) + "\n")
+                res.append(rec.get() / (l - ins) / self.params.read_count)
+        return res
+
+    def print_coverages(self, coverage_records, ins):
+        f = open(os.path.join(self.params.output_dir, "tslr_coverages.info"), "w")
+        for rec in coverage_records:
+            l = len(rec)
+            if l > self.params.min_len:
+                f.write(str(l) + " " + str(rec.get()) + " " + str(rec.get() / (l - ins)) + " " + str(rec.get() / (l - ins) / self.params.read_count) + "\n")
         f.close()
 
     def CountReads(self):
@@ -167,7 +191,7 @@ class MetaLengthPipeline:
             file_type = "fastq"
             if "fasta" in f.split(".") or "fa" in f.split("."):
                 file_type = "fasta"
-            for rec in SeqIO.parse(io.universal_read(f), file_type):
+            for rec in SeqIO.parse(metalen_io.universal_read(f), file_type):
                 if len(rec) > self.params.min_len:
                     rec.id = str(cnt) + "_" + rec.id
                     SeqIO.write(rec, tslrs_file, "fasta")

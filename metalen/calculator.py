@@ -93,10 +93,9 @@ class Calculator:
         self.min_len = min_len
         log.info("Reading TSLRs")
         file_type = self.GetFileType(tslr_file)
-        self.seq_len =[len(rec.seq) for rec in SeqIO.parse(open(tslr_file, "r"), file_type)]
         self.coverage_records = [LongReadRecord(len(rec)) for rec in SeqIO.parse(open(tslr_file, "r"), file_type)]
         self.is_cnt = is_cnt
-        self.tslr_count = len([a for a in self.seq_len if a > self.min_len])
+        self.tslr_count = len([a for a in self.coverage_records if len(a) > self.min_len])
 
     def GetFileType(self, tslr_file):
         file_type = "fastq"

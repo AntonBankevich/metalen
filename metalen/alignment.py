@@ -6,13 +6,13 @@
 
 import os
 
-import io
+import metalen_io
 
 
 class AlignmentCalculator:
     #if reference is a .fasta of .fa file it will be ised to construct index. Otherwise it is considered as index itself
     def __init__(self, work_dir, aligner, reference, log):
-        io.ensure_dir_existence(work_dir)
+        metalen_io.ensure_dir_existence(work_dir)
         self.work_dir = work_dir
         self.aligner = aligner
         self.log = log
@@ -23,7 +23,7 @@ class AlignmentCalculator:
         if reference.endswith(".fasta") or reference.endswith(".fa"):
             command_line = aligner.IndexCommand(reference, self.index)
             log.info(" ".join(command_line))
-            io.universal_sys_call(command_line, log, self.log_file, self.err_log_file)
+            metalen_io.universal_sys_call(command_line, log, self.log_file, self.err_log_file)
         else:
             self.index = reference
         log.info("Index constructed.")
@@ -34,7 +34,7 @@ class AlignmentCalculator:
         self.log.info("Right reads: " + reads2)
         self.log.info("Output directory: " + self.work_dir)
         self.log.info("Starting read alignment. See detailed log in " + self.log_file)
-        io.universal_sys_call(self.aligner.PairedAlignCommand(self.index, reads1, reads2, threads), self.log, output, self.err_log_file)
+        metalen_io.universal_sys_call(self.aligner.PairedAlignCommand(self.index, reads1, reads2, threads), self.log, output, self.err_log_file)
         self.log.info("Done. See result in " + output)
         return output
 
@@ -44,13 +44,13 @@ class AlignmentCalculator:
         self.log.info("Right reads: " + reads2)
         self.log.info("Output directory: " + self.work_dir)
         self.log.info("Starting read alignment. See detailed log in " + self.log_file)
-        return io.online_sys_call(self.aligner.PairedAlignCommand(self.index, reads1, reads2, threads), self.log_file)
+        return metalen_io.online_sys_call(self.aligner.PairedAlignCommand(self.index, reads1, reads2, threads), self.log_file)
 
     def align_bwa_pe_libs(self, reads, output_dir, threads):
         self.log.info("===== Starting read alignment")
         result = []
         lib_num = 1
-        io.ensure_dir_existence(output_dir)
+        metalen_io.ensure_dir_existence(output_dir)
         for left_reads, right_reads in reads:
             result.append(self.AlignPELib(left_reads, right_reads, os.path.join(output_dir, str(lib_num) + ".sam"), threads))
             lib_num += 1

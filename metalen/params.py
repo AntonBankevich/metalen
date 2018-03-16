@@ -2,7 +2,7 @@
 import getopt
 import os
 
-import io
+import metalen_io
 import sys
 import logging
 
@@ -34,18 +34,21 @@ class MetaLengthParameters:
     def __init__(self, argv):
         self.ParseValues(argv)
         self.CheckParamConsistency()
+
         self.log = logging.getLogger("meta_size")
         log = self.log
+
         log.setLevel(logging.DEBUG)
         console = logging.StreamHandler(sys.stdout)
         console.setFormatter(logging.Formatter('%(message)s'))
         console.setLevel(logging.DEBUG)
         log.addHandler(console)
-        io.ensure_dir_existence(self.output_dir)
-        console = logging.StreamHandler(open(os.path.join(self.output_dir, "meta_length.log"), "w"))
-        console.setFormatter(logging.Formatter('%(message)s'))
-        console.setLevel(logging.DEBUG)
-        log.addHandler(console)
+
+        metalen_io.ensure_dir_existence(self.output_dir)
+        file_log = logging.StreamHandler(open(os.path.join(self.output_dir, "meta_length.log"), "w"))
+        file_log.setFormatter(logging.Formatter('%(message)s'))
+        file_log.setLevel(logging.DEBUG)
+        log.addHandler(file_log)
 
     def ParseValues(self, argv):
         if len(argv) == 1:

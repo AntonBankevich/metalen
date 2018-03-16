@@ -1,6 +1,6 @@
 import os
 
-import metalen.io
+import metalen.metalen_io
 import random
 
 import sys
@@ -57,6 +57,6 @@ if __name__ == "__main__":
     long_num = 1000
     genome = RandomGenome(genome_length)
     dir = sys.argv[1]
-    metalen.io.ensure_dir_existence(dir)
+    metalen.metalen_io.ensure_dir_existence(dir)
     RandomLongReads(os.path.join(dir, "long.fasta"), genome, long_num, [6000, 10000])
     RandomPairedReads(os.path.join(dir, "short_1.fastq"), os.path.join(dir, "short_2.fastq"), genome, short_num, 100)
