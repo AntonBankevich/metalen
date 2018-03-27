@@ -103,7 +103,7 @@ class MetaLengthPipeline:
         import histogram
         if histogram.Ready:
             hfname = os.path.join(self.params.output_dir, "frequency_histogram.pdf")
-            histogram.DrawHeightHistogram(hfname, heights)
+            histogram.DrawFigure(hfname, heights)
             self.params.log.info("Histogram written to " + hfname)
         else:
             self.params.log.info("WARNING: can not draw histogram. " + histogram.Error)

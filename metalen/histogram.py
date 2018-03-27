@@ -18,11 +18,10 @@ import math
 import sys
 
 
-def DrawHeightHistogram(fname, heights):
+def DrawHeightHistogram(ax, heights, color = "black"):
     curvex, curvey = HeightsToCurve(heights)
-    ax = plt.subplot()
     #plt.plot(x, y, cols[0])
-    ax.plot(curvex, curvey, "b")
+    ax.plot(curvex, curvey, color)
     # map(lambda (d, c): ax.plot(d['X'], d['Y'], c, markersize=4, markeredgewidth=0.0), zip(df, cols)[0:])
     ax.set_yscale("log")
     scale = ""
@@ -31,9 +30,9 @@ def DrawHeightHistogram(fname, heights):
     # elif df[0]["m"] == 1000000000:
     #     scale = "(Gb)"
     ax.set_xlabel("Cumulative length" + scale)
-    ax.set_ylabel("Height", color = "black")
+    ax.set_ylabel("Height", color = color)
     ax.set_xlim(min(curvex) - 1, max(curvex)*1.1)
-    ax.tick_params(axis='y', colors="black")
+    ax.tick_params(axis='y', colors=color)
     # plt.xticks(list(plt.xticks()[0]) + [curvex[-1]])
     mi = min(curvey)
     mi1 = math.pow(10, int(math.log10(mi)))
@@ -43,11 +42,17 @@ def DrawHeightHistogram(fname, heights):
     ma = math.pow(10, int(math.log10(ma)))
     ax.set_ylim(mi, ma)
     # ax.set_title(name)
+
+def DrawFigure(fname, heights):
+    ax = plt.subplot()
+    DrawHeightHistogram(ax, heights)
     plt.tight_layout()
     pp = matplotlib.backends.backend_pdf.PdfPages(fname)
     pp.savefig()
     pp.close()
     plt.clf()
+
+
 
 def HeightsToCurve(heights):
     heights = sorted(heights)[::-1]
@@ -72,4 +77,4 @@ def HeightsToCurve(heights):
 
 if __name__ == "__main__":
     heights = map(lambda x: float(x.split()[-1]), open(sys.argv[1], "r").readlines())
-    DrawHeightHistogram("fig.pdf", heights)
+    DrawFigure("fig.pdf", heights)
