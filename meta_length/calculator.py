@@ -1,6 +1,6 @@
 import math
 
-from metalen import SeqIO
+from meta_length import SeqIO
 
 
 def LimitSequence(min_limit, max_limit = 1000000000000):

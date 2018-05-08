@@ -2,11 +2,11 @@ import logging
 import math
 import os
 
-from metalen import SeqIO
-from metalen import sam_parser
-from metalen import alignment
-from metalen import metalen_io
-from metalen import calculator
+from meta_length import SeqIO
+from meta_length import sam_parser
+from meta_length import alignment
+from meta_length import metalen_io
+from meta_length import calculator
 
 VERSION = "1.0"
 
@@ -42,7 +42,7 @@ class ResultPrinter:
         self.debug = debug
 
     def generate_output_params(self, tslr_count):
-        from metalen.calculator import LimitSequence
+        from meta_length.calculator import LimitSequence
         if self.debug:
             return list(LimitSequence(1000)), LimitSequence(10, self.calc.tslr_count)
         else:
@@ -54,7 +54,7 @@ class ResultPrinter:
             self.cur_limit += 1
 
     def print_all_results(self, read_count):
-        from metalen.calculator import LimitSequence
+        from meta_length.calculator import LimitSequence
         tslr_limits = list(LimitSequence(self.tslr_limits, self.calc.tslr_count))
         self.log.info("")
         self.log.info("Results for " + str(read_count) + " short reads")

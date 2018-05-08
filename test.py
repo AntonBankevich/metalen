@@ -1,11 +1,11 @@
 import os
 
-import metalen.metalen_io
+import meta_length.metalen_io
 import random
 
 import sys
 
-from metalen import SeqIO
+from meta_length import SeqIO
 
 
 def RC(s):
@@ -53,10 +53,10 @@ def RandomLongReads(fname, genome, num, len_bounds):
 
 if __name__ == "__main__":
     genome_length = 1000000
-    short_num = 100000
-    long_num = 1000
+    short_num = 10000
+    long_num = 100
     genome = RandomGenome(genome_length)
     dir = sys.argv[1]
-    metalen.metalen_io.ensure_dir_existence(dir)
+    meta_length.metalen_io.ensure_dir_existence(dir)
     RandomLongReads(os.path.join(dir, "long.fasta"), genome, long_num, [6000, 10000])
     RandomPairedReads(os.path.join(dir, "short_1.fastq"), os.path.join(dir, "short_2.fastq"), genome, short_num, 100)

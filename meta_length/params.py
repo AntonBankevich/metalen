@@ -7,6 +7,7 @@ import sys
 import logging
 
 bowtie_params = {"tslr" : "--fast --no-discordant --no-mixed -a".split(), "pacbio" : "-D 40 -R 3 -N 0 -L 19 -i S,1,0.50 --rdg 1,3 --rfg 1,3 -k 100 --score-min L,-0.6,-1 --ignore-quals".split()}
+version = 1.0
 
 class MetaLengthParameters:
     left_reads = []
@@ -28,7 +29,30 @@ class MetaLengthParameters:
     sam = None
 
     def print_usage_and_exit(self, code):
-        sys.stderr.write("min-len= output-coverages bowtie-path= tslrs= tslr-index= sam= save-sam read-count= threads= help output-dir= 1:2:ho:t:\n")
+        # sys.stderr.write("min-len= output-coverages bowtie-path= tslrs= tslr-index= sam= save-sam read-count= threads= help output-dir= 1:2:ho:t:\n")
+        sys.stderr.write("MetaLen v" + str(version) +
+                         ": metagenome size estimator that uses combination of long and short reads.\n" +
+                         "MetaLen supports Illumina paired-end reads and Illumina Synthetic Long reads\n\n")
+        sys.stderr.write("Usage: " + str(sys.argv[0]) + " [options] -o <output_dir>" + "\n")
+        sys.stderr.write("" + "\n")
+        sys.stderr.write("Basic options:" + "\n")
+        sys.stderr.write("-h/--help\t\t\tprints this usage message" + "\n")
+        sys.stderr.write("-v/--version\t\t\tprints version" + "\n")
+        # sys.stderr.write("--test\t\t\t\trun MetaLen on toy dataset" + "\n")
+        sys.stderr.write("-o\t\t<output_dir>\tdirectory to store all the output (required)" + "\n")
+        sys.stderr.write("-t/--threads\t<int>\t\tnumber of threads" + "\n")
+
+        sys.stderr.write("" + "\n")
+        sys.stderr.write("Input options:" + "\n")
+        sys.stderr.write("-1\tfile with forward paired-end reads\n")
+        sys.stderr.write("-2\tfile with reverse paired-end reads\n")
+        sys.stderr.write("--long\tfile with long reads\n")
+
+        sys.stderr.write("" + "\n")
+        sys.stderr.write("Additional options:" + "\n")
+        sys.stderr.write("--bowtie-path\tpath to location containing bowtie2 binary files. If this option is not specified we assume that bowtie2 binary directory is in system path\n")
+        sys.stderr.write("--min-len\tminimal length of long read to be used for estimation\n")
+
         sys.exit(code)
 
     def __init__(self, argv):
@@ -53,7 +77,7 @@ class MetaLengthParameters:
     def ParseValues(self, argv):
         if len(argv) == 1:
             self.print_usage_and_exit(1)
-        long_params = "pacbio min-len= output-coverages bowtie-path= tslrs= tslr-index= sam= save-sam read-count= threads= help output-dir=".split(" ")
+        long_params = "pacbio min-len= output-coverages bowtie-path= long= index= sam= save-sam read-count= threads= help output-dir=".split(" ")
         short_params = "s:1:2:ho:t:"
         try:
             options_list, tmp = getopt.gnu_getopt(argv[1:], short_params, long_params)
@@ -61,16 +85,16 @@ class MetaLengthParameters:
                 self.print_usage_and_exit(1)
         except getopt.GetoptError:
             _, exc, _ = sys.exc_info()
-            sys.stderr.write(str(exc) + "\n")
+            sys.stderr.write("Parameter parsing error: " + str(exc) + "\n\n")
             self.print_usage_and_exit(1)
         for (key, value) in options_list:
             if key == "--bowtie-path":
                 self.bowtie_path = value
             elif key == "--pacbio":
                 self.bowtie_params = bowtie_params["pacbio"]
-            elif key == "--tslrs":
+            elif key == "--long":
                 self.tslrs.append(value)
-            elif key == "--tslr-index":
+            elif key == "--index":
                 self.tslr_index = value
             elif key == "--output-coverages":
                 self.output_coverages = True

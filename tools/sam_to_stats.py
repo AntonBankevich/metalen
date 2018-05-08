@@ -1,5 +1,5 @@
 import sys
-from metalen import sam_parser, SeqIO, metalen_io
+from meta_length import sam_parser, SeqIO, metalen_io
 
 class Record:
     def __init__(self, name, length, count = 0):

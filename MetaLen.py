@@ -1,7 +1,7 @@
 import sys
 import time
-from metalen.params import MetaLengthParameters
-from metalen.pipeline import MetaLengthPipeline
+from meta_length.params import MetaLengthParameters
+from meta_length.pipeline import MetaLengthPipeline
 
 if __name__ == "__main__":
     start = time.time()
