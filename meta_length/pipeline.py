@@ -2,11 +2,12 @@ import logging
 import math
 import os
 
-from meta_length import SeqIO
-from meta_length import sam_parser
-from meta_length import alignment
-from meta_length import metalen_io
-from meta_length import calculator
+from . import SeqIO
+from . import sam_parser
+from . import alignment
+from . import metalen_io
+from . import calculator
+import time
 
 VERSION = "1.0"
 
@@ -33,8 +34,9 @@ def estToString(num):
 
 
 class ResultPrinter:
-    def __init__(self, calc, log, debug):
+    def __init__(self, calc, is_calc, log, debug):
         self.calc = calc
+        self.is_calc = is_calc
         self.log = log
         self.debug = debug
         self.limits, self.tslr_limits = self.generate_output_params(calc.tslr_count)
@@ -53,48 +55,58 @@ class ResultPrinter:
             self.print_all_results(self.limits[self.cur_limit])
             self.cur_limit += 1
 
-    def print_all_results(self, read_count):
+    def print_all_results(self, read_count = None):
         from meta_length.calculator import LimitSequence
+        if read_count is None:
+            read_count = self.calc.read_number
         tslr_limits = list(LimitSequence(self.tslr_limits, self.calc.tslr_count))
         self.log.info("")
         self.log.info("Results for " + str(read_count) + " short reads")
         for num_tslrs in tslr_limits:
-            self.print_results(read_count, num_tslrs, self.log)
+            self.print_results(read_count, num_tslrs)
         self.log.info("")
 
-    def print_results(self, num_reads, num_tslrs, log):
-        res = self.calc.Count(num_reads, num_tslrs)
+    def print_results(self, num_reads = None, num_tslrs = None):
+        if num_tslrs is None:
+            num_tslrs = self.calc.tslr_count
+        if num_reads is None:
+            num_reads = self.calc.read_number
+        res = self.calc.Count(self.is_calc.get(), num_tslrs, num_reads)
         self.log.info("Total TSLRs: " + str(num_tslrs) + ". " + estToString(res.nonzero * 100) +
                       " % long reads were covered by short reads.")
         if res.nonzero < 0.7:
             self.log.info("WARNING: high fraction of uncovered long reads. Result is unreliable.")
         if res.nonzero > 0.01:
-            log.info("Estimated metagenome size: " + estToString(res.est) + "+-" + estToString(res.disp))
+            self.log.info("Estimated metagenome size: " + estToString(res.est) + "+-" + estToString(res.disp))
 
 
 class MetaLengthPipeline:
-    def __init__(self, params):
+    def __init__(self, params, log):
         self.params = params
+        self.log = log
 
     def Run(self):
         # prepare to run
+        start = time.time()
         metalen_io.ensure_dir_existence(self.params.output_dir)
-        log_file = logging.StreamHandler(open(os.path.join(self.params.output_dir, "log.info"), "w"))
-        self.params.log.addHandler(log_file)
-        # find read count if not provided
-        if self.params.read_count is None:
-            self.params.log.info("Counting reads. To skip this step use --read-count option")
-            self.params.read_count = self.CountReads()
-            self.params.log.info("Number of reads: " + str(self.params.read_count))
+        alignment_dir = os.path.join(self.params.output_dir, "alignment")
+        metalen_io.ensure_dir_existence(alignment_dir)
+        log_file = logging.StreamHandler(open(os.path.join(self.params.output_dir, "meta_len.log"), "w"))
+        self.log.addHandler(log_file)
+        # write input params to file
+        param_file = open(os.path.join(self.params.output_dir, "params.txt"), "w")
+        param_file.write("\t".join(self.params.input))
+        param_file.close()
         # prepare combined TSLRs file and construct index if not provided
         if self.params.tslr_index is not None or self.params.sam is not None:
             assert len(self.params.tslrs) == 1
             tslrs_file = self.params.tslrs[0]
         else:
-            tslrs_file = self.ConcatTSLRs()
+            long_read_file = os.path.join(alignment_dir, "long.fasta")
+            tslrs_file = self.ConcatTSLRs(long_read_file)
         # start alignment
         if self.params.sam is None:
-            sam_handler = sam_parser.SamChain(map(sam_parser.Samfile, self.PerformAlignment(tslrs_file, self.params.log)))
+            sam_handler = sam_parser.SamChain(map(sam_parser.Samfile, self.PerformAlignment(tslrs_file, alignment_dir)))
         else:
             sam_handler = sam_parser.Samfile(open(self.params.sam, "r"))
         # calculate metagenome length
@@ -104,94 +116,93 @@ class MetaLengthPipeline:
         if histogram.Ready:
             hfname = os.path.join(self.params.output_dir, "frequency_histogram.pdf")
             histogram.DrawFigure(hfname, heights)
-            self.params.log.info("Histogram written to " + hfname)
+            self.log.info("Histogram written to " + hfname)
         else:
-            self.params.log.info("WARNING: can not draw histogram. " + histogram.Error)
+            self.log.info("WARNING: can not draw histogram. " + histogram.Error)
         # prepare to finish
-        self.params.log.removeHandler(log_file)
+        self.log.info("Finished in " + str(time.time() - start) + " seconds\n")
+        self.log.removeHandler(log_file)
 
-    def PerformAlignment(self, tslrs_file, log):
+    def PerformAlignment(self, tslrs_file, alignment_dir):
         aligner = alignment.Bowtie2(self.params.bowtie_path, self.params.bowtie_params)
-        alignment_dir = os.path.join(self.params.output_dir, "alignment")
         metalen_io.ensure_dir_existence(alignment_dir)
         if self.params.tslr_index is None:
-            log.info("Creating index for TSLRs")
-            alignment_calculator = alignment.AlignmentCalculator(alignment_dir, aligner, tslrs_file, log)
+            self.log.info("Creating index for TSLRs")
+            alignment_calculator = alignment.AlignmentCalculator(alignment_dir, aligner, tslrs_file, self.log)
         else:
-            alignment_calculator = alignment.AlignmentCalculator(alignment_dir, aligner, self.params.tslr_index, log)
-        log.info("TSLR index ready")
+            alignment_calculator = alignment.AlignmentCalculator(alignment_dir, aligner, self.params.tslr_index, self.log)
+            self.log.info("TSLR index ready")
         if self.params.save_sam:
-            log.info("Starting alignment")
-            sam_files = alignment_calculator.align_bwa_pe_libs(zip(self.params.left_reads, self.params.right_reads), self.params.output_dir,
+            self.log.info("Starting alignment")
+            sam_files = alignment_calculator.align_bwa_pe_libs(zip(self.params.left_reads, self.params.right_reads), alignment_dir,
                                                                self.params.threads)
             sam_handler_list = [open(sam_file, "r") for sam_file in sam_files]
-            log.info("Finished alignment")
+            self.log.info("Finished alignment")
         else:
-            log.info("Starting alignment")
+            self.log.info("Starting alignment")
             sam_handler_list = [alignment_calculator.AlignPELibOnline(left, right, self.params.threads) for left, right in
                                 zip(self.params.left_reads, self.params.right_reads)]
         return sam_handler_list
 
     def ProcessSam(self, sam_handler, tslrs_file):
-        self.params.log.info("Preparing for estimation")
+        self.log.info("Preparing for estimation")
         is_counter = calculator.ISCounter()
-        calc = calculator.Calculator(tslrs_file, self.params.min_len, is_counter, self.params.log)
+        self.log.info("Reading TSLRs")
+        calc = calculator.Calculator(tslrs_file, self.params.min_len)
         listeners = [is_counter, calc]
-        printer = ResultPrinter(calc, self.params.log, self.params.debug)
+        printer = ResultPrinter(calc, is_counter, self.log, self.params.debug)
         if self.params.debug:
             listeners.append(printer)
-        self.params.log.info("Alignment analysis started")
+        self.log.info("Alignment analysis started")
         cnt = 0
         for rec in sam_handler:
             for listener in listeners:
                 listener.Process(rec)
             cnt += 1
             if cnt % 10000000 == 0:
-                self.params.log.info(str(cnt) + " alignments processed")
-                self.params.log.info(rec.query_name)
-        if calc.is_cnt.get() == 0:
-            self.params.log.info("WARNING: Could not estimate insert size. Setting insert size value to 0.")
-        self.params.log.info("Alignment analysis finished")
-        self.params.log.info("Insert size estimated as " + str(calc.is_cnt.get()))
-        if self.params.output_coverages:
-            self.print_coverages(calc.coverage_records, calc.is_cnt.get())
-        if self.params.debug:
-            printer.print_all_results(self.params.read_count)
+                self.log.info(str(cnt) + " alignments processed")
+                self.log.info(rec.query_name)
+        self.log.info("Alignment analysis finished")
+        if is_counter.get() == 0:
+            self.log.info("WARNING: Could not estimate insert size. Setting insert size value to 0.")
         else:
-            printer.print_results(self.params.read_count, self.calc.tslr_count, self.params.log)
-        return self.getHeights(calc.coverage_records, calc.is_cnt.get())
+            self.log.info("Insert size estimated as " + str(is_counter.get()))
+        if self.params.output_coverages:
+            self.print_coverages(calc.coverage_records, is_counter.get(), calc.read_number)
+        if self.params.debug:
+            printer.print_all_results()
+        else:
+            printer.print_results()
+        return self.getHeights(calc.coverage_records, is_counter.get(), calc.read_number)
 
-    def getHeights(self, coverage_records, ins):
+    def getHeights(self, coverage_records, ins, read_number):
         res = []
         for rec in coverage_records:
             l = len(rec)
             if l > self.params.min_len:
-                res.append(rec.get() / (l - ins) / self.params.read_count)
+                res.append(rec.get() / (l - ins) / read_number)
         return res
 
-    def print_coverages(self, coverage_records, ins):
-        f = open(os.path.join(self.params.output_dir, "tslr_coverages.info"), "w")
+    def print_coverages(self, coverage_records, ins, read_number):
+        f = open(os.path.join(self.params.output_dir, "long_read_coverages.info"), "w")
         for rec in coverage_records:
             l = len(rec)
             if l > self.params.min_len:
-                f.write(str(l) + " " + str(rec.get()) + " " + str(rec.get() / (l - ins)) + " " + str(rec.get() / (l - ins) / self.params.read_count) + "\n")
+                f.write(rec.id + " " + str(l) + " " + str(rec.get()) + " " + str(rec.get() / (l - ins) / read_number) + "\n")
         f.close()
 
     def CountReads(self):
         result = 0
         for f in self.params.left_reads:
-            result += sum(1 for line in SeqIO.Open(f, "r"))
+            result += sum(1 for line in metalen_io.universal_open(f, "r")[0])
         return result / 2
 
-    def ConcatTSLRs(self):
-        file_name = os.path.join(self.params.output_dir, "tslrs.fasta")
+    def ConcatTSLRs(self, file_name):
         tslrs_file = open(file_name, "w")
         cnt = 0
         for f in self.params.tslrs:
-            file_type = "fastq"
-            if "fasta" in f.split(".") or "fa" in f.split("."):
-                file_type = "fasta"
-            for rec in SeqIO.parse(metalen_io.universal_read(f), file_type):
+            handler, name = metalen_io.universal_open(f, "r")
+            for rec in SeqIO.parse(handler, name):
                 if len(rec) > self.params.min_len:
                     rec.id = str(cnt) + "_" + rec.id
                     SeqIO.write(rec, tslrs_file, "fasta")

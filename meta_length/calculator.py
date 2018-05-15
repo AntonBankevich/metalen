@@ -1,4 +1,5 @@
 import math
+import sys
 
 from meta_length import SeqIO
 
@@ -37,10 +38,11 @@ def CountD(values, num, insert_size):
     return abs(E2 - E * E)
 
 class LongReadRecord:
-    def __init__(self, l, bins = 10):
-        self.bin_size = (l + bins - 1) / bins
+    def __init__(self, rec, bins = 10):
+        self.id = rec.id
+        self.bin_size = (len(rec) + bins - 1) / bins
         self.cov = [0] * bins
-        self.size = l
+        self.size = len(rec)
 
     def __len__(self):
         return self.size
@@ -89,13 +91,16 @@ class EstimationResult:
         self.insert_size = insert_size
 
 class Calculator:
-    def __init__(self, tslr_file, min_len, is_cnt, log):
+    def __init__(self, tslr_file, min_len):
         self.min_len = min_len
-        log.info("Reading TSLRs")
+        self.read_number = 0
         file_type = self.GetFileType(tslr_file)
-        self.coverage_records = [LongReadRecord(len(rec)) for rec in SeqIO.parse(open(tslr_file, "r"), file_type)]
-        self.is_cnt = is_cnt
-        self.tslr_count = len([a for a in self.coverage_records if len(a) > self.min_len])
+        self.coverage_records = [LongReadRecord(rec) for rec in SeqIO.parse(open(tslr_file, "r"), file_type)]
+        for rec in self.coverage_records:
+            if rec.size < min_len:
+                sys.stderr.write("Inconsistent input: provided long read file contains reads shorter then minimal length.\n")
+                sys.exit(1)
+        self.tslr_count = len(self.coverage_records)
 
     def GetFileType(self, tslr_file):
         file_type = "fastq"
@@ -106,11 +111,16 @@ class Calculator:
     def Process(self, rec):
         if not rec.is_unmapped:
             self.coverage_records[rec.tid].update(rec.pos)
+        if not rec.secondary:
+            self.read_number += 1
 
-    def Count(self, read_num, tslr_num):
-        subcov = [(a.get(), a.size) for a in self.coverage_records if a.size > self.min_len][0:tslr_num]
+    def Count(self, insert_size, tslr_num = None, read_num = None):
+        if tslr_num is None:
+            tslr_num = len(self.coverage_records)
+        if read_num is None:
+            read_num = self.read_number
+        subcov = [(a.get(), a.size) for a in self.coverage_records[0:tslr_num]]
         subsubcov = [a for a in subcov if a[0] > 0]
-        insert_size = self.is_cnt.get()
         estimation = Count(subsubcov, read_num, insert_size)
         dispersion = math.sqrt(CountD(subsubcov, read_num, insert_size) / tslr_num)
         nonzero_fraction = float(len(subsubcov)) / tslr_num

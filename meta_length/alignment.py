@@ -6,7 +6,7 @@
 
 import os
 
-import metalen_io
+from . import metalen_io
 
 
 class AlignmentCalculator:

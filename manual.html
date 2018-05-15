@@ -1,0 +1,250 @@
+<html>
+<head>
+    <title>MetaLen 1.0 Manual</title>
+    <style type="text/css">
+        .code {
+            background-color: lightgray;
+        }
+    </style>
+</head>
+<body>
+<h1>MetaLen 1.0 Manual</h1>
+
+1. <a href="#sec1">About MetaLen</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;1.1. <a href="#sec1.1">Frequency histogram</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;1.2. <a href="#sec1.2">MetaLen pipeline</a><br>
+2. <a href="#sec2">Installation</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;2.1. <a href="#sec2.1">Downloading MetaLen</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;2.2. <a href="#sec2.2">Installing MetaLen</a><br>
+3. <a href="#sec3">Running MetaLen</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;3.1. <a href="#sec3.1">MetaLen input</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;3.2. <a href="#sec3.2">MetaLen command line options</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;3.5. <a href="#sec3.5">MetaLen output</a><br>
+4. <a href="#sec5">Feedback and bug reports</a><br>
+<br>
+
+<a name="sec1"></a>
+<h2>1. About MetaLen</h2>
+<p>
+  MetaLen is a tool for estimation of total length of genomes from a metagenomic sample and construction of approcimate frequency histogram for species in the sample.
+  MetaLen requires both short and long reads as an input.
+  The current version of MetaLen works with Illumina paired-end reads and Illumina Synthetic Long reads.
+  This manual will help you to install and run MetaLen. MetaLen version 1.0 was released under GPLv2 on May 14, 2018 and can be downloaded from  <a href="http://cab.spbu.ru/software/metalen/" target="_blank">http://cab.spbu.ru/software/metalen/</a>.
+  MetaLen is capable of capturing species with short read coverage as low as 0.01.
+  However the most reliable estimates (with bias at most 10%) are obtained for species with coverage above 0.15.
+
+<a name="sec1.2"></a>
+<h3>1.1 Frequency histogram</h3>
+<p>
+  We construct <em>frequency histogram</em> to reveal abundances of species in the metagenome.
+  We define <em>frequency</em> of a genome as the number of copies of this genome in the sample normalized by the total length of all DNA in the sample.
+  Genome frequency can be viewed as probability of sequencing read to originate from a given position in the genome.
+  The frequency histogram of a metagenome consisting of <em>t</em> genomes is defined by <em>t</em> bars with heights specified by the frequencies of the genomes and varying widths specified by the lengths of the genomes.
+  <p>
+
+
+<a name="sec1.2"></a>
+<h3>1.2 MetaLen pipeline</h3>
+<p>
+  MetaLen alignes all short reads to all long reads using bowtie2.
+  Then for each long read we count its coverage by short reads and use computational methods to estimate both total length of genomes in the metagenome and construct approximate frequency histogram.
+  
+
+<a name="sec2"></a>
+<h2>2. Installation</h2>
+<a name="sec2.1"></a>
+<h3>2.1 MetaLen requirements</h3>
+<p>
+    MetaLen requires a 64-bit Linux system or Mac OS with the following software and packages preinstalled:
+  </p>
+<ul>
+    <li>Python (version 2.7)</li>
+    <li><a href="http://bowtie-bio.sourceforge.net/bowtie2/" target="_blank">bowtie2</a> alignment tool</li>
+    <li><a href = "https://zlib.net/" target="_blank">zlib</a> python package</li>
+    <li><a href="https://matplotlib.org/" target="_blank">MatPlotLib</a> python package</li>
+</ul>
+  Both zlib and MatPlotLib can be installed using Python <a href="http://www.pip-installer.org/" target="_blank">pip-installer</a>.
+  If MatPlotLib package is not installed in your system MetaLen will still calculate the estimated metagenome size but frequency histogram drawing step will be skipped.
+<a name="sec2.2"></a>
+<h3>2.2 MetaLen installation</h3>
+  <p>
+    To install MetaLen download its code from <a href="http://cab.spbu.ru/software/metalen/" target="_blank">http://cab.spbu.ru/software/metalen/</a> and unpack it into a directory of your choosing.
+    No further installation is required.
+  </p>
+<p>
+    We also suggest adding MetaLen installation directory to the PATH variable.
+  </p>
+  
+  
+ <a name="sec3"></a>
+<h2>3. Running MetaLen</h2>
+
+<a name="sec3.1"></a>
+<h3>3.1 MetaLen input</h3>
+<p>
+  MetaLen takes as input paired-end reads in fastq format and long reads in fasta or fastq format.
+  Input reads can also be provided in compressed form (using gzip).
+</p>
+
+<a name="sec3.2"></a>
+<h3>3.2 MetaLen command line options </h3>
+<p>
+    For the simplicity we further assume that SPAdes installation directory is added to the PATH variable.
+    Provide full path to MetaLen executable otherwise: <MetaLen installation dir>/MetaLen.py)
+</p>
+<p>
+    To run MetaLen from the command line, type
+
+<pre class="code">
+<code>
+    MetaLen.py [options] -o &lt;output_dir>
+</code>
+</pre>
+
+<a name="basicopt"></a>
+<h4>Basic options</h4>
+<p>
+    <code>-h</code> (or <code>--help</code>)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;Print help.
+</p>
+
+<p>
+    <code>-v</code> (or <code>--version</code>)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;Print MetaLen version.
+</p>
+
+<p>
+    <code>-o &lt;directory_name></code> (or <code>--output-dir &lt;directory_name></code>) <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;Specify the output directory. Required option.
+</p>
+
+<p>
+    <code>-t &lt;int></code> (or <code>--threads &lt;int></code>)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;Specify the number of threads.
+</p>
+
+<a name="inputdata"></a>
+<h4>Input data</h4>
+
+<p>
+    <code>-1 &lt;file_name> </code><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;File with forward reads. This option can be used several times to specify multiple forward read files. See examples <a href="#examples">here</a>.
+</p>
+
+<p>
+    <code>-2 &lt;file_name> </code><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;File with reverse reads. This option can be used several times to specify multiple reverse read files. See examples <a href="#examples">here</a>.
+</p>
+
+<p>
+    <code>--long &lt;file_name> </code><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;File with long reads. This option can be used several times to specify multiple long read files. See examples <a href="#examples">here</a>.
+</p>
+
+<a name="advancedopt">
+<h4>Aditional options</h4>
+
+<p>
+    <code>--bowtie-path &lt;path></code><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;Specify path to bowtie2 binary files location. If this option is not specified bowtie2 binary path is assumed to be in system PATH.
+</p>
+
+<p>
+    <code>--min-len &lt;int></code><br>
+        Specify minimal length of long reads to be used for mtagenome size estimation. Default value is 6000.
+</p>
+
+
+<a name="examples">
+<h4>Examples</h4>
+<p>
+    To run MetaLen on a single pared-end read library and single long read library run:
+
+<pre class="code">
+<code>
+    ./MetaLen.py -1 forward.fastq -2 reverse.fastq --long illumina_SLR.fastq -o metalen_output
+</code>
+</pre>
+
+<p>
+    If you have your short read library separated into several pairs of files, for example:
+
+<pre class="code">
+<code>
+    forward_1.fastq
+    reverse_1.fastq
+    forward_2.fastq
+    reverse_2.fastq
+</code>
+</pre>
+
+
+<p>
+    make sure that corresponding files are given in the same order:
+
+<pre class="code">
+<code>
+    MetaLen.py -1 forward.fastq -2 reverse.fastq -1 forward.fastq -2 reverse_2.fastq --long illumina_SLR.fastq -o metalen_output
+</code>
+</pre>
+
+
+<p>
+    You can specify several long read files as well:
+
+<pre class="code">
+<code>
+    MetaLen.py -1 forward.fastq -2 reverse.fastq -1 forward.fastq -2 reverse_2.fastq --long illumina_SLR1.fastq --long illumina_SLR1.fastq --long illumina_SLR1.fasta -o metalen_output
+</code>
+</pre>
+
+    <p>Note that any or all provided read files can be compressed using gzip.</p>
+<pre class="code">
+<code>
+    MetaLen.py -1 forward.fastq.gz -2 reverse.fastq.gz -1 forward.fastq -2 reverse_2.fastq --long illumina_SLR1.fastq --long illumina_SLR1.fastq.gz --long illumina_SLR1.fasta.gz -o metalen_output
+</code>
+</pre>
+
+    <p>You can use additional options to customize minimal size of long reads that will be used for calculation or provide a path to bowtien binary directory.</p>
+<pre class="code">
+<code>
+    MetaLen.py -1 forward.fastq.gz -2 reverse.fastq.gz --long illumina_SLR1.fasta.gz --min-len 8000 --bowtie-path /home/username/bowtie2/ -o metalen_output
+</code>
+</pre>
+
+<a name="sec3.5">
+<h3>3.5 MetaLen output</h3>
+<p>
+    MetaLen stores all output files in <code>&lt;output_dir> </code>, which is set by the user.
+
+    <ul>
+        <li><code>&lt;output_dir>/meta_len.log</code> log file of MetaLen</li>
+        <li><code>&lt;output_dir>/frequency_histogram.pdf</code> approximated frequency histogram of the metagenome</li>
+        <li><code>&lt;output_dir>/long_read_coverages.info</code> file that contains information about coverage of long reads by short reads. See format of the file below</li>
+        <li><code>&lt;output_dir>/alignment/</code> folder containing auxillary files used for alignment of short reads to long reads <a href="http://fastg.sourceforge.net/FASTG_Spec_v1.00.pdf" target="_blank">FASTG format</a></li>
+    </ul>
+<p>
+
+<a name="sec4">
+<h2>4. Citation</h2>
+<p>
+    If you use MetaLen in your research, please include Bankevich and Pevzner (2018), Cell Systems paper in your references.
+</p>
+<br>
+
+
+<a name="sec5">
+<h2>5. Feedback and bug reports</h2>
+<p>
+    Your comments, bug reports, and suggestions are very welcomed. They will help us to further improve MetaLen.
+
+<p>
+    If you have any troubles running MetaLen, please send us <code>params.txt</code> and <code>meta_len.log</code> from the directory <code>&lt;output_dir></code>.
+
+<p>
+    Address for communications: <a href="mailto:anton.bankevich@gmail.com" target="_blank">anton.bankevich@gmail.com</a>.
+
+<br/><br/><br/><br/><br/>
+
+</body>
+</html>

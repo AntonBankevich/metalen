@@ -1,9 +1,15 @@
 import gzip
+import logging
 import os
 import shutil
 
 import sys
 
+def universal_open(f, mode):
+    if f.endswith(".gz"):
+        return gzip.open(f, mode), f[:-3]
+    else:
+        return open(f, mode), f
 
 def process_readline(line, is_python3=sys.version.startswith('3.')):
     if is_python3:
@@ -91,3 +97,16 @@ def universal_sys_call(cmd, log, out_filename=None, err_filename=None, cwd=None)
         stderr.close()
     if proc.returncode:
         os.error('system call for: "%s" finished abnormally, err code: %d' % (cmd, proc.returncode), log)
+
+
+def create_log(name):
+    log = logging.getLogger(name)
+    log.setLevel(logging.DEBUG)
+    console = logging.StreamHandler(sys.stdout)
+    console.setFormatter(logging.Formatter('%(message)s'))
+    console.setLevel(logging.DEBUG)
+    console = logging.StreamHandler(sys.stderr)
+    console.setFormatter(logging.Formatter('%(message)s'))
+    console.setLevel(logging.DEBUG)
+    log.addHandler(console)
+    return log

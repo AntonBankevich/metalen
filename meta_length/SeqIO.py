@@ -8,12 +8,6 @@ import itertools
 import sys
 import gzip
 
-def Open(f, mode):
-    if f.endswith(".gz"):
-        return gzip.open(f, mode)
-    else:
-        return open(f, mode)
-
 class Reader:
     def __init__(self, handler):
         self.handler = handler
@@ -95,11 +89,12 @@ class SeqRecord:
         else:
             return self
 
-def parse(handler, file_type):
-    assert file_type in ["fasta", "fastq"]
-    if file_type == "fasta":
+def parse(handler, file_name):
+    file_type = file_name.split(".")[-1]
+    assert file_type in ["fasta", "fastq", "fa", "fq"]
+    if file_type in ["fasta", "fa"]:
         return parse_fasta(handler)
-    if file_type == "fastq":
+    if file_type in ["fastq", "fq"]:
         return parse_fastq(handler)
 
 def parse_fasta(handler):

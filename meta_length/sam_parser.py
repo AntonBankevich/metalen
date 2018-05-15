@@ -4,7 +4,6 @@
 # See file LICENSE for details.
 ############################################################################
 
-import os
 import sys
 import itertools
 import re
@@ -194,7 +193,7 @@ class Samfile:
 
     def __init__(self, handler):
         self.InitFields()
-        self.handler = handler.xreadlines()
+        self.handler = handler
         self.target_map["*"] = -1
         for line in self.handler:
             if not self.processLine(line.strip()):
