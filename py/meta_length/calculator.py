@@ -3,6 +3,7 @@ import sys
 
 import histogram
 from meta_length import SeqIO
+from sam_parser import SAMEntryInfo
 
 
 def LimitSequence(min_limit, max_limit = 1000000000000):
@@ -129,9 +130,10 @@ class Calculator:
         return file_type
 
     def Process(self, rec):
+        # type: (SAMEntryInfo) -> None
         if not rec.is_unmapped:
             self.coverage_records[rec.tid].update(rec.pos)
-        if self.last_name != rec.id:
+        if self.last_name != rec.query_name:
             self.read_number += 1
 
     def Count(self, insert_size, tslr_num = None):
