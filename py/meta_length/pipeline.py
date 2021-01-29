@@ -11,6 +11,13 @@ import time
 
 VERSION = "1.0"
 
+def getHeights(coverage_records, ins, read_number, min_len):
+    res = []
+    for rec in coverage_records:
+        l = len(rec)
+        if l > min_len and rec.get() > 0:
+            res.append(rec.get() / (l - ins) / read_number)
+    return res
 
 def GetReadNum(read_id):
     tmp = read_id.split()[0].split(".")
@@ -40,8 +47,13 @@ class ResultPrinter:
         self.log = log
         self.debug = debug
         self.limits, self.tslr_limits = self.generate_output_params(calc.tslr_count)
+        print self.limits
+        print self.tslr_limits
         self.cur_limit = 0
         self.debug = debug
+        self.last_name = ""
+        self.read_cnt = 0
+        self.hists = []
 
     def generate_output_params(self, tslr_count):
         from meta_length.calculator import LimitSequence
@@ -51,9 +63,14 @@ class ResultPrinter:
             return [], LimitSequence(tslr_count, self.calc.tslr_count)
 
     def Process(self, rec):
-        if rec.query_name != "" and GetReadNum(rec.query_name) > self.limits[self.cur_limit]:
+        if self.last_name != rec.query_name:
+            self.read_cnt += 1
+        self.last_name = rec.query_name
+#        if rec.query_name != "" and GetReadNum(rec.query_name) > self.limits[self.cur_limit]:
+        if rec.query_name != "" and self.read_cnt == self.limits[self.cur_limit]:
             self.print_all_results(self.limits[self.cur_limit])
             self.cur_limit += 1
+            self.hists.append((self.read_cnt, getHeights(self.calc.coverage_records, self.is_calc.get(), self.read_cnt, self.calc.min_len)))
 
     def print_all_results(self, read_count = None):
         from meta_length.calculator import LimitSequence
@@ -114,9 +131,10 @@ class MetaLengthPipeline:
         # draw frequency histogram
         import histogram
         if histogram.Ready:
-            hfname = os.path.join(self.params.output_dir, "frequency_histogram.pdf")
-            histogram.DrawFigure(hfname, heights)
-            self.log.info("Histogram written to " + hfname)
+            for num, hist in heights: 
+                hfname = os.path.join(self.params.output_dir, str(num) + "_frequency_histogram.pdf")
+                histogram.DrawFigure(hfname, hist)
+                self.log.info("Histogram written to " + hfname)
         else:
             self.log.info("WARNING: can not draw histogram. " + histogram.Error)
         # prepare to finish
@@ -153,6 +171,7 @@ class MetaLengthPipeline:
         printer = ResultPrinter(calc, is_counter, self.log, self.params.debug)
         if self.params.debug:
             listeners.append(printer)
+        print str(self.params.debug)
         self.log.info("Alignment analysis started")
         cnt = 0
         for rec in sam_handler:
@@ -173,15 +192,7 @@ class MetaLengthPipeline:
             printer.print_all_results()
         else:
             printer.print_results()
-        return self.getHeights(calc.coverage_records, is_counter.get(), calc.read_number)
-
-    def getHeights(self, coverage_records, ins, read_number):
-        res = []
-        for rec in coverage_records:
-            l = len(rec)
-            if l > self.params.min_len:
-                res.append(rec.get() / (l - ins) / read_number)
-        return res
+        return printer.hists
 
     def print_coverages(self, coverage_records, ins, read_number):
         f = open(os.path.join(self.params.output_dir, "long_read_coverages.info"), "w")

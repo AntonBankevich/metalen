@@ -44,6 +44,7 @@ def DrawHeightHistogram(ax, heights, color = "black"):
     # ax.set_title(name)
 
 def DrawFigure(fname, heights):
+    plt.switch_backend('agg')
     ax = plt.subplot()
     DrawHeightHistogram(ax, heights)
     plt.tight_layout()

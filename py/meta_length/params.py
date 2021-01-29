@@ -16,7 +16,7 @@ class MetaLengthParameters:
     tslr_index = None
     hidden_read_count = None
     output_dir = None
-    threads = 8
+    threads = 32
     bowtie_path = None
     bowtie_params = bowtie_params["tslr"]
     save_sam = False
