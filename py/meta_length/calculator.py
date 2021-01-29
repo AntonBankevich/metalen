@@ -135,6 +135,7 @@ class Calculator:
             self.coverage_records[rec.tid].update(rec.pos)
         if self.last_name != rec.query_name:
             self.read_number += 1
+            self.last_name = rec.query_name
 
     def Count(self, insert_size, tslr_num = None):
         if tslr_num is None:
