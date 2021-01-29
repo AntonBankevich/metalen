@@ -1,6 +1,7 @@
 import math
 import sys
 
+import histogram
 from meta_length import SeqIO
 
 
@@ -58,6 +59,7 @@ class LongReadRecord:
         return float(sum(tmp[step:-step])) / (len(tmp) - 2 * step) * len(tmp)
 
 def ISCounter(max_value = 1000):
+    # type: (int) -> ShiftCounter
     return ShiftCounter(lambda rec: abs(rec.tlen) if abs(rec.tlen) < max_value else -1)
 
 # def LenCounter(max_value = 1000):
@@ -101,6 +103,24 @@ class Calculator:
                 sys.stderr.write("Inconsistent input: provided long read file contains reads shorter then minimal length.\n")
                 sys.exit(1)
         self.tslr_count = len(self.coverage_records)
+        self.last_name = ""
+
+    def dump(self, out, insert_size):
+        for rec in self.coverage_records:
+            l = len(rec)
+            out << rec.id << " " << str(rec.get() / (l - insert_size) / self.read_number) << "\n"
+
+    def getHeights(self, insert_size):
+        res = []
+        for rec in self.coverage_records:
+            l = len(rec)
+            if l > self.min_len and rec.get() > 0:
+                res.append(rec.get() / (l - insert_size) / self.read_number)
+        return res
+
+    def draw(self, fname, insert_size):
+        if histogram.Ready:
+            histogram.DrawFigure(fname, self.getHeights(insert_size))
 
     def GetFileType(self, tslr_file):
         file_type = "fastq"
@@ -111,17 +131,15 @@ class Calculator:
     def Process(self, rec):
         if not rec.is_unmapped:
             self.coverage_records[rec.tid].update(rec.pos)
-        if not rec.secondary:
+        if self.last_name != rec.id:
             self.read_number += 1
 
-    def Count(self, insert_size, tslr_num = None, read_num = None):
+    def Count(self, insert_size, tslr_num = None):
         if tslr_num is None:
             tslr_num = len(self.coverage_records)
-        if read_num is None:
-            read_num = self.read_number
         subcov = [(a.get(), a.size) for a in self.coverage_records[0:tslr_num]]
         subsubcov = [a for a in subcov if a[0] > 0]
-        estimation = Count(subsubcov, read_num, insert_size)
-        dispersion = math.sqrt(CountD(subsubcov, read_num, insert_size) / tslr_num)
+        estimation = Count(subsubcov, self.read_number, insert_size)
+        dispersion = math.sqrt(CountD(subsubcov, self.read_number, insert_size) / tslr_num)
         nonzero_fraction = float(len(subsubcov)) / tslr_num
         return EstimationResult(estimation, dispersion, nonzero_fraction, insert_size)
