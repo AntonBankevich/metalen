@@ -5,6 +5,7 @@
 ############################################################################
 
 import os
+from typing import List, BinaryIO
 
 from . import metalen_io
 
@@ -39,6 +40,7 @@ class AlignmentCalculator:
         return output
 
     def AlignPELibOnline(self, reads1, reads2, threads):
+        # type: (str, str, int) -> BinaryIO
         self.log.info("Aligning paired-end library")
         self.log.info("Left reads: " + reads1)
         self.log.info("Right reads: " + reads2)

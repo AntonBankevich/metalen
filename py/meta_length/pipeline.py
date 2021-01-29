@@ -1,7 +1,12 @@
 import logging
 import math
 import os
+from logging import Logger
+from typing import BinaryIO, List, Tuple
 
+from calculator import LongReadRecord
+from params import MetaLengthParameters
+from sam_parser import Samfile
 from . import SeqIO
 from . import sam_parser
 from . import alignment
@@ -41,7 +46,7 @@ def estToString(num):
 
 
 class ResultPrinter:
-    def __init__(self, calc, is_calc, log, debug):
+    def __init__(self, calc, is_calc, log, dir, debug):
         self.calc = calc
         self.is_calc = is_calc
         self.log = log
@@ -50,6 +55,7 @@ class ResultPrinter:
         print self.limits
         print self.tslr_limits
         self.cur_limit = 0
+        self.dir = dir
         self.debug = debug
         self.last_name = ""
         self.read_cnt = 0
@@ -99,6 +105,7 @@ class ResultPrinter:
 
 class MetaLengthPipeline:
     def __init__(self, params, log):
+        # type: (MetaLengthParameters, Logger) -> None
         self.params = params
         self.log = log
 
@@ -142,6 +149,7 @@ class MetaLengthPipeline:
         self.log.removeHandler(log_file)
 
     def PerformAlignment(self, tslrs_file, alignment_dir):
+        # type: (str, str) -> List[BinaryIO]
         aligner = alignment.Bowtie2(self.params.bowtie_path, self.params.bowtie_params)
         metalen_io.ensure_dir_existence(alignment_dir)
         if self.params.tslr_index is None:
@@ -163,12 +171,13 @@ class MetaLengthPipeline:
         return sam_handler_list
 
     def ProcessSam(self, sam_handler, tslrs_file):
+        # type: (Samfile, str) -> List[Tuple[int, List[float]]]
         self.log.info("Preparing for estimation")
         is_counter = calculator.ISCounter()
         self.log.info("Reading TSLRs")
         calc = calculator.Calculator(tslrs_file, self.params.min_len)
         listeners = [is_counter, calc]
-        printer = ResultPrinter(calc, is_counter, self.log, self.params.debug)
+        printer = ResultPrinter(calc, is_counter, self.log, self.params.output_dir, self.params.debug)
         if self.params.debug:
             listeners.append(printer)
         print str(self.params.debug)

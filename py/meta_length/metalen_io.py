@@ -4,6 +4,8 @@ import os
 import shutil
 
 import sys
+from logging import Logger
+
 
 def universal_open(f, mode):
     if f.endswith(".gz"):
@@ -100,6 +102,7 @@ def universal_sys_call(cmd, log, out_filename=None, err_filename=None, cwd=None)
 
 
 def create_log(name):
+    # type: (str) -> Logger
     log = logging.getLogger(name)
     log.setLevel(logging.DEBUG)
     console = logging.StreamHandler(sys.stdout)

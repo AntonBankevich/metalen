@@ -3,6 +3,7 @@ import getopt
 import os
 
 import sys
+from typing import List, BinaryIO
 
 bowtie_params = {"tslr" : "--fast --no-discordant --no-mixed -a".split(), "pacbio" : "-D 40 -R 3 -N 0 -L 19 -i S,1,0.50 --rdg 1,3 --rfg 1,3 -k 100 --score-min L,-0.6,-1 --ignore-quals".split()}
 version = 1.0
@@ -52,6 +53,7 @@ class MetaLengthParameters:
         sys.exit(code)
 
     def __init__(self, argv, err_log):
+        # type: (List[str], BinaryIO) -> None
         self.program_name = argv[0]
         self.ParseValues(argv, err_log)
         self.CheckParamConsistency(err_log)
