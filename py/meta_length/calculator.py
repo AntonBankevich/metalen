@@ -109,7 +109,7 @@ class Calculator:
     def dump(self, out, insert_size):
         for rec in self.coverage_records:
             l = len(rec)
-            out << rec.id << " " << str(rec.get() / (l - insert_size) / self.read_number) << "\n"
+            out.write(rec.id + " " + str(rec.get() / (l - insert_size) / self.read_number) + "\n")
 
     def getHeights(self, insert_size):
         res = []
